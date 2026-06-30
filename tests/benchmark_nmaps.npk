@@ -1,0 +1,72 @@
+// tests/benchmark_nmaps.npk
+use "../src/mem.npk".*;
+use "../src/intmap.npk".*;
+use "../src/mapc.npk".*;
+use "../src/treemap.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    int64:num_items = 100000i64;
+    
+    // Test IntMap
+    int64:intmap = raw create(16i64);
+    int64:i = 0i64;
+    while (i < num_items) {
+        int64:rand_key = raw hash_int64(i);
+        drop raw put(intmap, rand_key, i * 10i64);
+        i = i + 1i64;
+    }
+    
+    // Test MapC
+    int64:mapc = raw mapc_create(16i64);
+    i = 0i64;
+    while (i < num_items) {
+        int64:rand_key = raw hash_int64(i);
+        drop raw mapc_put(mapc, rand_key, i * 10i64);
+        i = i + 1i64;
+    }
+    
+    // Test TreeMap
+    int64:treemap = raw treemap_create();
+    i = 0i64;
+    while (i < num_items) {
+        int64:rand_key = raw hash_int64(i);
+        drop raw treemap_put(treemap, rand_key, i * 10i64);
+        i = i + 1i64;
+    }
+    
+    // Retrievals
+    wild int8->:out_ptr = nodrop alloc(8i64);
+    defer { dalloc(out_ptr); }
+    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    
+    i = 0i64;
+    while (i < num_items) {
+        int64:rand_key = raw hash_int64(i);
+        drop raw get(intmap, rand_key, out_addr);
+        i = i + 1i64;
+    }
+    
+    i = 0i64;
+    while (i < num_items) {
+        int64:rand_key = raw hash_int64(i);
+        drop raw mapc_get(mapc, rand_key, out_addr);
+        i = i + 1i64;
+    }
+    
+    i = 0i64;
+    while (i < num_items) {
+        int64:rand_key = raw hash_int64(i);
+        drop raw treemap_get(treemap, rand_key, out_addr);
+        i = i + 1i64;
+    }
+
+    drop raw destroy(intmap);
+    drop raw mapc_destroy(mapc);
+    
+    // we don't have a treemap_destroy yet, so treemap leaks its nodes at program exit.
+    // that's okay for the benchmark script!
+
+    exit 0i32;
+};

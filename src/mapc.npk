@@ -1,0 +1,217 @@
+// src/mapc.npk
+use "mem.npk".*;
+use "hash.npk".*;
+use "intmap.npk".*;
+use "allocator.npk".*;
+
+// Header size: 32 bytes
+pub struct:MapCHeader = {
+    int64:capacity;  // 0..7
+    int64:size;      // 8..15
+    int64:buckets;   // 16..23 (pointer to array of pointers)
+    int64:allocator; // 24..31 (MapAllocator handle)
+};
+
+// Node size: 24 bytes
+// [0..7]: key
+// [8..15]: val
+// [16..23]: next pointer
+
+pub func:mapc_create = int64(int64:initial_capacity) {
+    if (initial_capacity < 8i64) {
+        initial_capacity = 8i64;
+    }
+    
+    int64:allocator = raw MapAllocator.create(24i64);
+    if (allocator == 0i64) { pass 0i64; }
+    
+    wild int8->:header_ptr = nodrop alloc(32i64);
+    if ((@cast_unchecked<int64>(header_ptr)) == 0i64) {
+        drop raw MapAllocator.destroy(allocator);
+        pass 0i64;
+    }
+    
+    int64:buckets_size = initial_capacity * 8i64;
+    wild int8->:buckets_ptr = nodrop alloc(buckets_size);
+    if ((@cast_unchecked<int64>(buckets_ptr)) == 0i64) {
+        dalloc(header_ptr);
+        drop raw MapAllocator.destroy(allocator);
+        pass 0i64;
+    }
+    
+    int64:b_addr = (@cast_unchecked<int64>(buckets_ptr)) & 281474976710655i64;
+    int64:i = 0i64;
+    while (i < buckets_size) {
+        drop raw store8(b_addr + i, 0i8);
+        i = i + 1i64;
+    }
+    
+    int64:h_addr = (@cast_unchecked<int64>(header_ptr)) & 281474976710655i64;
+    drop raw store64(h_addr, initial_capacity);
+    drop raw store64(h_addr + 8i64, 0i64);
+    drop raw store64(h_addr + 16i64, b_addr);
+    drop raw store64(h_addr + 24i64, allocator);
+    pass h_addr;
+};
+
+func:_mapc_rehash = int8(int64:map) {
+    int64:old_capacity = raw load64(map);
+    int64:old_buckets = raw load64(map + 16i64);
+    
+    int64:new_capacity = old_capacity * 2i64;
+    int64:new_buckets_size = new_capacity * 8i64;
+    wild int8->:new_buckets_ptr = nodrop alloc(new_buckets_size);
+    if ((@cast_unchecked<int64>(new_buckets_ptr)) == 0i64) { pass 0i8; }
+    
+    int64:new_b_addr = (@cast_unchecked<int64>(new_buckets_ptr)) & 281474976710655i64;
+    
+    int64:i = 0i64;
+    while (i < new_buckets_size) {
+        drop raw store8(new_b_addr + i, 0i8);
+        i = i + 1i64;
+    }
+    
+    drop raw store64(map, new_capacity);
+    drop raw store64(map + 16i64, new_b_addr);
+    
+    int64:j = 0i64;
+    while (j < old_capacity) {
+        int64:head = raw load64(old_buckets + (j * 8i64));
+        while (head != 0i64) {
+            int64:next = raw load64(head + 16i64);
+            int64:key = raw load64(head);
+            
+            // re-insert head into new_b_addr
+            int64:hash = raw hash_int64(key);
+            int64:idx = hash % new_capacity;
+            if (idx < 0i64) { idx = idx + new_capacity; }
+            
+            int64:new_bucket_addr = new_b_addr + (idx * 8i64);
+            int64:current_new_head = raw load64(new_bucket_addr);
+            
+            drop raw store64(head + 16i64, current_new_head);
+            drop raw store64(new_bucket_addr, head);
+            
+            head = next;
+        }
+        j = j + 1i64;
+    }
+    
+    dalloc(@cast_unchecked<any->>(old_buckets));
+    pass 1i8;
+};
+
+pub func:mapc_put = int8(int64:map, int64:key, int64:val) {
+    int64:capacity = raw load64(map);
+    int64:size = raw load64(map + 8i64);
+    
+    // Load factor ~100% threshold for chained map
+    if (size >= capacity) {
+        drop raw _mapc_rehash(map);
+        capacity = raw load64(map);
+    }
+    
+    int64:buckets = raw load64(map + 16i64);
+    int64:allocator = raw load64(map + 24i64);
+    
+    int64:hash = raw hash_int64(key);
+    int64:idx = hash % capacity;
+    if (idx < 0i64) { idx = idx + capacity; }
+    
+    int64:bucket_addr = buckets + (idx * 8i64);
+    int64:head = raw load64(bucket_addr);
+    
+    int64:curr = head;
+    while (curr != 0i64) {
+        int64:ckey = raw load64(curr);
+        if (ckey == key) {
+            // Update
+            drop raw store64(curr + 8i64, val);
+            pass 1i8;
+        }
+        curr = raw load64(curr + 16i64);
+    }
+    
+    // Insert new node
+    int64:new_node = raw MapAllocator.alloc(allocator);
+    if (new_node == 0i64) { pass 0i8; }
+    
+    drop raw store64(new_node, key);
+    drop raw store64(new_node + 8i64, val);
+    drop raw store64(new_node + 16i64, head);
+    
+    drop raw store64(bucket_addr, new_node);
+    drop raw store64(map + 8i64, size + 1i64);
+    pass 1i8;
+};
+
+pub func:mapc_get = int8(int64:map, int64:key, int64:out_val_ptr) {
+    int64:capacity = raw load64(map);
+    int64:buckets = raw load64(map + 16i64);
+    
+    int64:hash = raw hash_int64(key);
+    int64:idx = hash % capacity;
+    if (idx < 0i64) { idx = idx + capacity; }
+    
+    int64:bucket_addr = buckets + (idx * 8i64);
+    int64:curr = raw load64(bucket_addr);
+    
+    while (curr != 0i64) {
+        int64:ckey = raw load64(curr);
+        if (ckey == key) {
+            if (out_val_ptr != 0i64) {
+                drop raw store64(out_val_ptr, raw load64(curr + 8i64));
+            }
+            pass 1i8;
+        }
+        curr = raw load64(curr + 16i64);
+    }
+    pass 0i8;
+};
+
+pub func:mapc_remove = int8(int64:map, int64:key) {
+    int64:capacity = raw load64(map);
+    int64:size = raw load64(map + 8i64);
+    int64:buckets = raw load64(map + 16i64);
+    int64:allocator = raw load64(map + 24i64);
+    
+    int64:hash = raw hash_int64(key);
+    int64:idx = hash % capacity;
+    if (idx < 0i64) { idx = idx + capacity; }
+    
+    int64:bucket_addr = buckets + (idx * 8i64);
+    int64:curr = raw load64(bucket_addr);
+    int64:prev = 0i64;
+    
+    while (curr != 0i64) {
+        int64:ckey = raw load64(curr);
+        if (ckey == key) {
+            int64:next = raw load64(curr + 16i64);
+            if (prev == 0i64) {
+                drop raw store64(bucket_addr, next);
+            } else {
+                drop raw store64(prev + 16i64, next);
+            }
+            drop raw MapAllocator.free(allocator, curr);
+            drop raw store64(map + 8i64, size - 1i64);
+            pass 1i8;
+        }
+        prev = curr;
+        curr = raw load64(curr + 16i64);
+    }
+    pass 0i8;
+};
+
+pub func:mapc_destroy = int8(int64:map) {
+    if (map == 0i64) { pass 0i8; }
+    int64:buckets = raw load64(map + 16i64);
+    if (buckets != 0i64) {
+        dalloc(@cast_unchecked<any->>(buckets));
+    }
+    int64:allocator = raw load64(map + 24i64);
+    if (allocator != 0i64) {
+        drop raw MapAllocator.destroy(allocator);
+    }
+    dalloc(@cast_unchecked<any->>(map));
+    pass 1i8;
+};

@@ -1,0 +1,83 @@
+// tests/test_stress.npk
+use "../src/mem.npk".*;
+use "../src/intmap.npk".*;
+use "../src/mapc.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    int64:intmap = raw create(16i64);
+    int64:mapc = raw mapc_create(16i64);
+    
+    if (intmap == 0i64) { exit 1i32; }
+    if (mapc == 0i64) { exit 2i32; }
+    
+    wild int8->:out_ptr = nodrop alloc(8i64);
+    defer { dalloc(out_ptr); }
+    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    
+    // 1. Insert 10,000 elements
+    int64:i = 0i64;
+    while (i < 10000i64) {
+        drop raw put(intmap, i, i * 10i64);
+        drop raw mapc_put(mapc, i, i * 10i64);
+        i = i + 1i64;
+    }
+    
+    if (raw load64(intmap + 8i64) != 10000i64) { exit 3i32; }
+    if (raw load64(mapc + 8i64) != 10000i64) { exit 4i32; }
+    
+    // 2. Retrieve 10,000 elements
+    i = 0i64;
+    while (i < 10000i64) {
+        int8:f1 = raw get(intmap, i, out_addr);
+        if (f1 != 1i8) { exit 5i32; }
+        if (raw load64(out_addr) != i * 10i64) { exit 6i32; }
+        
+        int8:f2 = raw mapc_get(mapc, i, out_addr);
+        if (f2 != 1i8) { exit 7i32; }
+        if (raw load64(out_addr) != i * 10i64) { exit 8i32; }
+        
+        i = i + 1i64;
+    }
+    
+    // 3. Remove 5,000 alternating elements (evens)
+    i = 0i64;
+    while (i < 10000i64) {
+        drop raw remove(intmap, i);
+        drop raw mapc_remove(mapc, i);
+        i = i + 2i64;
+    }
+    
+    if (raw load64(intmap + 8i64) != 5000i64) { exit 9i32; }
+    if (raw load64(mapc + 8i64) != 5000i64) { exit 10i32; }
+    
+    // 4. Verify remaining odds
+    i = 1i64;
+    while (i < 10000i64) {
+        int8:f3 = raw get(intmap, i, out_addr);
+        if (f3 != 1i8) { exit 11i32; }
+        
+        int8:f4 = raw mapc_get(mapc, i, out_addr);
+        if (f4 != 1i8) { exit 12i32; }
+        
+        i = i + 2i64;
+    }
+    
+    // 5. Verify evens are gone
+    i = 0i64;
+    while (i < 10000i64) {
+        int8:f5 = raw get(intmap, i, out_addr);
+        if (f5 == 1i8) { exit 13i32; }
+        
+        int8:f6 = raw mapc_get(mapc, i, out_addr);
+        if (f6 == 1i8) { exit 14i32; }
+        
+        i = i + 2i64;
+    }
+
+    drop raw destroy(intmap);
+    drop raw mapc_destroy(mapc);
+
+    exit 0i32;
+};

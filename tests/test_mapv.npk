@@ -1,0 +1,60 @@
+// tests/test_mapv.npk
+use "../src/mem.npk".*;
+use "../src/hash.npk".*;
+use "../src/types.npk".*;
+use "../src/intmap.npk".*;
+use "../src/mapv.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    int64:map = raw mapv_create(8i64);
+    if (map == 0i64) { exit 1i32; }
+
+    int32:status = 0i32;
+    wild int8->:out_ptr = nodrop alloc(16i64);
+    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    int64:tag_addr = out_addr;
+    int64:val_addr = out_addr + 8i64;
+
+    wild int8->:str1 = nodrop alloc(6i64);
+    int64:s1_addr = (@cast_unchecked<int64>(str1)) & 281474976710655i64;
+    drop raw store8(s1_addr, 104i8); // h
+    drop raw store8(s1_addr + 1i64, 101i8); // e
+    drop raw store8(s1_addr + 2i64, 108i8); // l
+    drop raw store8(s1_addr + 3i64, 108i8); // l
+    drop raw store8(s1_addr + 4i64, 111i8); // o
+    drop raw store8(s1_addr + 5i64, 0i8);
+
+    // mapv_put: String key -> INT64 value
+    drop raw mapv_put(map, MAP_TAG_STR, s1_addr, MAP_TAG_INT64, 999i64);
+
+    // mapv_get: String key
+    int8:f1 = raw mapv_get(map, MAP_TAG_STR, s1_addr, tag_addr, val_addr);
+    if (f1 != 1i8) { status = 2i32; }
+    if (raw load64(tag_addr) != MAP_TAG_INT64) { status = 3i32; }
+    if (raw load64(val_addr) != 999i64) { status = 4i32; }
+
+    // mapv_put: Int64 key -> PTR value
+    drop raw mapv_put(map, MAP_TAG_INT64, 42i64, MAP_TAG_PTR, s1_addr);
+
+    // mapv_get: Int64 key
+    int8:f2 = raw mapv_get(map, MAP_TAG_INT64, 42i64, tag_addr, val_addr);
+    if (f2 != 1i8) { status = 5i32; }
+    if (raw load64(tag_addr) != MAP_TAG_PTR) { status = 6i32; }
+    if (raw load64(val_addr) != s1_addr) { status = 7i32; }
+
+    // delete
+    int8:rem1 = raw mapv_remove(map, MAP_TAG_STR, s1_addr);
+    if (rem1 != 1i8) { status = 8i32; }
+
+    // verify delete
+    int8:f3 = raw mapv_get(map, MAP_TAG_STR, s1_addr, tag_addr, val_addr);
+    if (f3 == 1i8) { status = 9i32; }
+
+    dalloc(str1);
+    dalloc(out_ptr);
+    drop raw mapv_destroy(map);
+
+    exit status;
+};

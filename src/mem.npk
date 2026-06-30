@@ -1,0 +1,54 @@
+// src/mem.npk
+pub func:store64 = int8(int64:addr, int64:val) {
+    int64->:ptr = @cast_unchecked<int64->>(addr);
+    ptr[0i64] = val;
+    pass 0i8;
+};
+
+pub func:load64 = int64(int64:addr) {
+    int64->:ptr = @cast_unchecked<int64->>(addr);
+    pass ptr[0i64];
+};
+
+pub func:store32 = int8(int64:addr, int32:val) {
+    int32->:ptr = @cast_unchecked<int32->>(addr);
+    ptr[0i64] = val;
+    pass 0i8;
+};
+
+pub func:load32 = int32(int64:addr) {
+    int32->:ptr = @cast_unchecked<int32->>(addr);
+    pass ptr[0i64];
+};
+
+pub func:store8 = int8(int64:addr, int8:val) {
+    int8->:ptr = @cast_unchecked<int8->>(addr);
+    ptr[0i64] = val;
+    pass 0i8;
+};
+
+pub func:load8 = int8(int64:addr) {
+    int8->:ptr = @cast_unchecked<int8->>(addr);
+    pass ptr[0i64];
+};
+
+pub func:str_eq = int8(int64:a, int64:b) {
+    if (a == b) { pass 1i8; }
+    if (a == 0i64) { pass 0i8; }
+    if (b == 0i64) { pass 0i8; }
+    
+    int64:i = 0i64;
+    int8:ca = raw load8(a);
+    int8:cb = raw load8(b);
+    
+    while (ca != 0i8) {
+        if (cb == 0i8) { pass 0i8; }
+        if (ca != cb) { pass 0i8; }
+        i = i + 1i64;
+        ca = raw load8(a + i);
+        cb = raw load8(b + i);
+    }
+    
+    if (ca == cb) { pass 1i8; }
+    pass 0i8;
+};

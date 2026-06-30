@@ -1,0 +1,10 @@
+// src/types.npk
+use "mem.npk".*;
+
+// Tag constants for Universal Map variants (MapV)
+pub int64:MAP_TAG_EMPTY   = 0i64;
+pub int64:MAP_TAG_INT64   = 1i64;
+pub int64:MAP_TAG_FLOAT64 = 2i64;
+pub int64:MAP_TAG_PTR     = 3i64;
+pub int64:MAP_TAG_BYTES   = 4i64;
+pub int64:MAP_TAG_STR     = 5i64;

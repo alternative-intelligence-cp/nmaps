@@ -1,0 +1,207 @@
+// src/treemap.npk
+use "mem.npk".*;
+use "allocator.npk".*;
+
+// Header size: 24 bytes
+pub struct:TreeMapHeader = {
+    int64:root;      // 0..7
+    int64:size;      // 8..15
+    int64:allocator; // 16..23
+};
+
+// Node size: 32 bytes
+// [0..7]: key
+// [8..15]: val
+// [16..23]: left
+// [24..31]: right
+
+pub func:treemap_create = int64() {
+    int64:allocator = raw MapAllocator.create(32i64);
+    if (allocator == 0i64) { pass 0i64; }
+    
+    wild int8->:header_ptr = nodrop alloc(24i64);
+    if ((@cast_unchecked<int64>(header_ptr)) == 0i64) {
+        drop raw MapAllocator.destroy(allocator);
+        pass 0i64;
+    }
+    
+    int64:h_addr = (@cast_unchecked<int64>(header_ptr)) & 281474976710655i64;
+    drop raw store64(h_addr, 0i64); // root = NULL
+    drop raw store64(h_addr + 8i64, 0i64); // size = 0
+    drop raw store64(h_addr + 16i64, allocator);
+    pass h_addr;
+};
+
+pub func:treemap_put = int8(int64:map, int64:key, int64:val) {
+    int64:root = raw load64(map);
+    int64:allocator = raw load64(map + 16i64);
+    
+    if (root == 0i64) {
+        int64:new_node = raw MapAllocator.alloc(allocator);
+        if (new_node == 0i64) { pass 0i8; }
+        drop raw store64(new_node, key);
+        drop raw store64(new_node + 8i64, val);
+        drop raw store64(new_node + 16i64, 0i64);
+        drop raw store64(new_node + 24i64, 0i64);
+        drop raw store64(map, new_node);
+        drop raw store64(map + 8i64, 1i64);
+        pass 1i8;
+    }
+    
+    int64:curr = root;
+    while (curr != 0i64) {
+        int64:ckey = raw load64(curr);
+        if (key == ckey) {
+            drop raw store64(curr + 8i64, val);
+            pass 1i8;
+        }
+        
+        if (key < ckey) {
+            int64:left = raw load64(curr + 16i64);
+            if (left == 0i64) {
+                int64:new_node = raw MapAllocator.alloc(allocator);
+                if (new_node == 0i64) { pass 0i8; }
+                drop raw store64(new_node, key);
+                drop raw store64(new_node + 8i64, val);
+                drop raw store64(new_node + 16i64, 0i64);
+                drop raw store64(new_node + 24i64, 0i64);
+                drop raw store64(curr + 16i64, new_node);
+                int64:s = raw load64(map + 8i64);
+                drop raw store64(map + 8i64, s + 1i64);
+                pass 1i8;
+            }
+            curr = left;
+        } else {
+            int64:right = raw load64(curr + 24i64);
+            if (right == 0i64) {
+                int64:new_node = raw MapAllocator.alloc(allocator);
+                if (new_node == 0i64) { pass 0i8; }
+                drop raw store64(new_node, key);
+                drop raw store64(new_node + 8i64, val);
+                drop raw store64(new_node + 16i64, 0i64);
+                drop raw store64(new_node + 24i64, 0i64);
+                drop raw store64(curr + 24i64, new_node);
+                int64:s = raw load64(map + 8i64);
+                drop raw store64(map + 8i64, s + 1i64);
+                pass 1i8;
+            }
+            curr = right;
+        }
+    }
+    pass 0i8;
+};
+
+pub func:treemap_get = int8(int64:map, int64:key, int64:out_val_ptr) {
+    int64:curr = raw load64(map);
+    while (curr != 0i64) {
+        int64:ckey = raw load64(curr);
+        if (key == ckey) {
+            if (out_val_ptr != 0i64) {
+                drop raw store64(out_val_ptr, raw load64(curr + 8i64));
+            }
+            pass 1i8;
+        }
+        if (key < ckey) {
+            curr = raw load64(curr + 16i64);
+        } else {
+            curr = raw load64(curr + 24i64);
+        }
+    }
+    pass 0i8;
+};
+
+func:_treemap_min = int64(int64:node) {
+    int64:curr = node;
+    while (curr != 0i64) {
+        int64:left = raw load64(curr + 16i64);
+        if (left == 0i64) { pass curr; }
+        curr = left;
+    }
+    pass 0i64;
+};
+
+// Returns new root
+func:_treemap_remove_node = int64(int64:root, int64:key, int64:allocator, int64:deleted_flag_ptr) {
+    if (root == 0i64) { pass 0i64; }
+    
+    int64:ckey = raw load64(root);
+    if (key < ckey) {
+        int64:left = raw load64(root + 16i64);
+        int64:new_left = raw _treemap_remove_node(left, key, allocator, deleted_flag_ptr);
+        drop raw store64(root + 16i64, new_left);
+        pass root;
+    } else {
+        if (key > ckey) {
+            int64:right = raw load64(root + 24i64);
+            int64:new_right = raw _treemap_remove_node(right, key, allocator, deleted_flag_ptr);
+            drop raw store64(root + 24i64, new_right);
+            pass root;
+        } else {
+            // Found node to delete
+            drop raw store8(deleted_flag_ptr, 1i8);
+            
+            int64:left = raw load64(root + 16i64);
+            int64:right = raw load64(root + 24i64);
+            
+            // Case 1: No child or one child
+            if (left == 0i64) {
+                drop raw MapAllocator.free(allocator, root);
+                pass right;
+            } else {
+                if (right == 0i64) {
+                    drop raw MapAllocator.free(allocator, root);
+                    pass left;
+                }
+            }
+            
+            // Case 3: Two children
+            // Find in-order successor
+            int64:min_node = raw _treemap_min(right);
+            int64:min_key = raw load64(min_node);
+            int64:min_val = raw load64(min_node + 8i64);
+            
+            // Copy min_node content
+            drop raw store64(root, min_key);
+            drop raw store64(root + 8i64, min_val);
+            
+            // Delete min_node from right subtree
+            int64:dummy_flag = 0i64; // recursive call already set deleted_flag_ptr
+            int64:new_right = raw _treemap_remove_node(right, min_key, allocator, deleted_flag_ptr);
+            drop raw store64(root + 24i64, new_right);
+            
+            pass root;
+        }
+    }
+};
+
+pub func:treemap_remove = int8(int64:map, int64:key) {
+    int64:root = raw load64(map);
+    int64:allocator = raw load64(map + 16i64);
+    
+    wild int8->:flag_ptr = nodrop alloc(8i64);
+    int64:flag_addr = (@cast_unchecked<int64>(flag_ptr)) & 281474976710655i64;
+    drop raw store8(flag_addr, 0i8);
+    
+    int64:new_root = raw _treemap_remove_node(root, key, allocator, flag_addr);
+    drop raw store64(map, new_root);
+    
+    int8:deleted = raw load8(flag_addr);
+    dalloc(flag_ptr);
+    
+    if (deleted == 1i8) {
+        int64:s = raw load64(map + 8i64);
+        drop raw store64(map + 8i64, s - 1i64);
+        pass 1i8;
+    }
+    pass 0i8;
+};
+
+pub func:treemap_destroy = int8(int64:map) {
+    if (map == 0i64) { pass 0i8; }
+    int64:allocator = raw load64(map + 16i64);
+    if (allocator != 0i64) {
+        drop raw MapAllocator.destroy(allocator);
+    }
+    dalloc(@cast_unchecked<any->>(map));
+    pass 1i8;
+};

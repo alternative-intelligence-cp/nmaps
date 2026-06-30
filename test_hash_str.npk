@@ -1,0 +1,28 @@
+use "src/hash.npk".*;
+use "src/mem.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    wild int8->:str1_addr = nodrop alloc(6i64);
+    int64:addr = @cast_unchecked<int64>(str1_addr);
+    drop raw store8(addr, 104i8);
+    drop raw store8(addr + 1i64, 101i8);
+    drop raw store8(addr + 2i64, 108i8);
+    drop raw store8(addr + 3i64, 108i8);
+    drop raw store8(addr + 4i64, 111i8);
+    drop raw store8(addr + 5i64, 0i8);
+
+    int32:status = 0i32;
+    int64:len = 0i64;
+    while (raw load8(addr + len) != 0i8) {
+        len = len + 1i64;
+    }
+    
+    // len should be 5
+    if (len != 5i64) {
+        status = @cast_unchecked<int32>(len);
+    }
+    dalloc(str1_addr);
+    exit status;
+};

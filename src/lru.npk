@@ -1,0 +1,173 @@
+// src/lru.npk
+use "mem.npk".*;
+use "allocator.npk".*;
+use "intmap.npk".*;
+
+// Header size: 48 bytes
+pub struct:LRUHeader = {
+    int64:intmap;     // 0..7
+    int64:allocator;  // 8..15
+    int64:head;       // 16..23
+    int64:tail;       // 24..31
+    int64:capacity;   // 32..39
+    int64:size;       // 40..47
+};
+
+// Node size: 32 bytes
+// [0..7]: key
+// [8..15]: val
+// [16..23]: prev
+// [24..31]: next
+
+pub func:lru_create = int64(int64:max_capacity) {
+    if (max_capacity < 4i64) {
+        max_capacity = 4i64;
+    }
+    
+    int64:intmap = raw create(max_capacity);
+    if (intmap == 0i64) { pass 0i64; }
+    
+    int64:allocator = raw MapAllocator.create(32i64);
+    if (allocator == 0i64) {
+        drop raw destroy(intmap);
+        pass 0i64;
+    }
+    
+    wild int8->:header_ptr = nodrop alloc(48i64);
+    if ((@cast_unchecked<int64>(header_ptr)) == 0i64) {
+        drop raw MapAllocator.destroy(allocator);
+        drop raw destroy(intmap);
+        pass 0i64;
+    }
+    
+    int64:h_addr = (@cast_unchecked<int64>(header_ptr)) & 281474976710655i64;
+    drop raw store64(h_addr, intmap);
+    drop raw store64(h_addr + 8i64, allocator);
+    drop raw store64(h_addr + 16i64, 0i64); // head
+    drop raw store64(h_addr + 24i64, 0i64); // tail
+    drop raw store64(h_addr + 32i64, max_capacity);
+    drop raw store64(h_addr + 40i64, 0i64); // size
+    
+    pass h_addr;
+};
+
+// Detach node from doubly-linked list
+func:_lru_detach = int8(int64:lru, int64:node) {
+    int64:prev = raw load64(node + 16i64);
+    int64:next = raw load64(node + 24i64);
+    
+    if (prev != 0i64) {
+        drop raw store64(prev + 24i64, next);
+    } else {
+        drop raw store64(lru + 16i64, next); // update head
+    }
+    
+    if (next != 0i64) {
+        drop raw store64(next + 16i64, prev);
+    } else {
+        drop raw store64(lru + 24i64, prev); // update tail
+    }
+    
+    pass 1i8;
+};
+
+// Attach node to head of doubly-linked list
+func:_lru_attach = int8(int64:lru, int64:node) {
+    int64:head = raw load64(lru + 16i64);
+    
+    drop raw store64(node + 16i64, 0i64);
+    drop raw store64(node + 24i64, head);
+    
+    if (head != 0i64) {
+        drop raw store64(head + 16i64, node);
+    } else {
+        drop raw store64(lru + 24i64, node); // update tail if empty
+    }
+    
+    drop raw store64(lru + 16i64, node); // update head
+    pass 1i8;
+};
+
+pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
+    int64:intmap = raw load64(lru);
+    int64:allocator = raw load64(lru + 8i64);
+    int64:capacity = raw load64(lru + 32i64);
+    int64:size = raw load64(lru + 40i64);
+    
+    wild int8->:node_ptr_out = nodrop alloc(8i64);
+    int64:node_ptr_addr = (@cast_unchecked<int64>(node_ptr_out)) & 281474976710655i64;
+    
+    int8:exists = raw get(intmap, key, node_ptr_addr);
+    if (exists == 1i8) {
+        int64:node = raw load64(node_ptr_addr);
+        drop raw store64(node + 8i64, val);
+        drop raw _lru_detach(lru, node);
+        drop raw _lru_attach(lru, node);
+        dalloc(node_ptr_out);
+        pass 1i8;
+    }
+    
+    dalloc(node_ptr_out);
+    
+    if (size >= capacity) {
+        // Evict tail
+        int64:tail = raw load64(lru + 24i64);
+        if (tail != 0i64) {
+            int64:tail_key = raw load64(tail);
+            drop raw _lru_detach(lru, tail);
+            drop raw remove(intmap, tail_key);
+            drop raw MapAllocator.free(allocator, tail);
+            size = size - 1i64;
+        }
+    }
+    
+    int64:new_node = raw MapAllocator.alloc(allocator);
+    if (new_node == 0i64) { pass 0i8; }
+    
+    drop raw store64(new_node, key);
+    drop raw store64(new_node + 8i64, val);
+    
+    drop raw put(intmap, key, new_node);
+    drop raw _lru_attach(lru, new_node);
+    
+    drop raw store64(lru + 40i64, size + 1i64);
+    pass 1i8;
+};
+
+pub func:lru_get = int8(int64:lru, int64:key, int64:out_val_ptr) {
+    int64:intmap = raw load64(lru);
+    
+    wild int8->:node_ptr_out = nodrop alloc(8i64);
+    int64:node_ptr_addr = (@cast_unchecked<int64>(node_ptr_out)) & 281474976710655i64;
+    
+    int8:exists = raw get(intmap, key, node_ptr_addr);
+    if (exists == 1i8) {
+        int64:node = raw load64(node_ptr_addr);
+        if (out_val_ptr != 0i64) {
+            drop raw store64(out_val_ptr, raw load64(node + 8i64));
+        }
+        
+        drop raw _lru_detach(lru, node);
+        drop raw _lru_attach(lru, node);
+        
+        dalloc(node_ptr_out);
+        pass 1i8;
+    }
+    
+    dalloc(node_ptr_out);
+    pass 0i8;
+};
+
+pub func:lru_destroy = int8(int64:lru) {
+    if (lru == 0i64) { pass 0i8; }
+    int64:intmap = raw load64(lru);
+    if (intmap != 0i64) {
+        drop raw destroy(intmap);
+    }
+    int64:allocator = raw load64(lru + 8i64);
+    if (allocator != 0i64) {
+        drop raw MapAllocator.destroy(allocator);
+    }
+    dalloc(@cast_unchecked<any->>(lru));
+    pass 1i8;
+};

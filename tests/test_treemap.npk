@@ -1,0 +1,69 @@
+// tests/test_treemap.npk
+use "../src/mem.npk".*;
+use "../src/allocator.npk".*;
+use "../src/treemap.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    int64:map = raw treemap_create();
+    if (map == 0i64) { exit 1i32; }
+
+    int32:status = 0i32;
+    wild int8->:out_ptr = nodrop alloc(8i64);
+    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    
+    // Put key 50 -> 500 (Root)
+    drop raw treemap_put(map, 50i64, 500i64);
+    // Put key 30 -> 300 (Left child)
+    drop raw treemap_put(map, 30i64, 300i64);
+    // Put key 70 -> 700 (Right child)
+    drop raw treemap_put(map, 70i64, 700i64);
+    // Put key 20 -> 200 (Left-Left child)
+    drop raw treemap_put(map, 20i64, 200i64);
+    // Put key 40 -> 400 (Left-Right child)
+    drop raw treemap_put(map, 40i64, 400i64);
+    
+    // Get key 30
+    int8:f1 = raw treemap_get(map, 30i64, out_addr);
+    if (f1 != 1i8) { status = 2i32; }
+    if (raw load64(out_addr) != 300i64) { status = 3i32; }
+    
+    // Get key 40
+    int8:f2 = raw treemap_get(map, 40i64, out_addr);
+    if (f2 != 1i8) { status = 4i32; }
+    if (raw load64(out_addr) != 400i64) { status = 5i32; }
+    
+    // Missing key
+    int8:f3 = raw treemap_get(map, 99i64, out_addr);
+    if (f3 == 1i8) { status = 6i32; }
+    
+    // Update key 30
+    drop raw treemap_put(map, 30i64, 301i64);
+    int8:f4 = raw treemap_get(map, 30i64, out_addr);
+    if (f4 != 1i8) { status = 7i32; }
+    if (raw load64(out_addr) != 301i64) { status = 8i32; }
+
+    // Remove key 30 (Node with two children)
+    int8:rem1 = raw treemap_remove(map, 30i64);
+    if (rem1 != 1i8) { status = 9i32; }
+    
+    // Get key 30 again (should be deleted)
+    int8:f5 = raw treemap_get(map, 30i64, out_addr);
+    if (f5 == 1i8) { status = 10i32; }
+    
+    // Ensure children of 30 are intact (20 and 40)
+    int8:f6 = raw treemap_get(map, 20i64, out_addr);
+    if (f6 != 1i8) { status = 11i32; }
+    
+    int8:f7 = raw treemap_get(map, 40i64, out_addr);
+    if (f7 != 1i8) { status = 12i32; }
+    
+    // Verify size
+    if (raw load64(map + 8i64) != 4i64) { status = 13i32; }
+
+    dalloc(out_ptr);
+    drop raw treemap_destroy(map);
+
+    exit status;
+};

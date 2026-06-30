@@ -1,0 +1,30 @@
+use "../src/mem.npk".*;
+use "../src/allocator.npk".*;
+use "../src/intmap.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    int64:map = raw create(8i64);
+    drop raw put(map, 10i64, 100i64);
+    drop raw put(map, 20i64, 200i64);
+    drop raw put(map, 30i64, 300i64);
+    
+    int8:rem = raw remove(map, 20i64);
+    if (rem != 1i8) { exit 2i32; }
+    
+    wild int8->:out_ptr = nodrop alloc(8i64);
+    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    
+    int8:g1 = raw get(map, 20i64, out_addr);
+    
+    drop raw put(map, 40i64, 400i64);
+    
+    int8:g2 = raw get(map, 20i64, out_addr);
+    dalloc(out_ptr);
+    
+    if (g1 == 1i8) { exit 3i32; }
+    if (g2 == 1i8) { exit 4i32; }
+    
+    exit 0i32;
+};

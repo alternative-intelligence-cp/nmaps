@@ -1,0 +1,71 @@
+// tests/test_mapc.npk
+use "../src/mem.npk".*;
+use "../src/hash.npk".*;
+use "../src/allocator.npk".*;
+use "../src/intmap.npk".*;
+use "../src/mapc.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32() {
+    int64:map = raw mapc_create(8i64);
+    if (map == 0i64) { exit 1i32; }
+
+    int32:status = 0i32;
+    wild int8->:out_ptr = nodrop alloc(8i64);
+    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    
+    // Put key 10 -> 100
+    drop raw mapc_put(map, 10i64, 100i64);
+    // Put key 20 -> 200
+    drop raw mapc_put(map, 20i64, 200i64);
+    
+    // Get key 10
+    int8:found1 = raw mapc_get(map, 10i64, out_addr);
+    if (found1 != 1i8) { status = 2i32; }
+    if (raw load64(out_addr) != 100i64) { status = 3i32; }
+    
+    // Get key 20
+    int8:found2 = raw mapc_get(map, 20i64, out_addr);
+    if (found2 != 1i8) { status = 4i32; }
+    if (raw load64(out_addr) != 200i64) { status = 5i32; }
+    
+    // Missing key
+    int8:found3 = raw mapc_get(map, 30i64, out_addr);
+    if (found3 == 1i8) { status = 6i32; }
+    
+    // Update key 10
+    drop raw mapc_put(map, 10i64, 101i64);
+    int8:found4 = raw mapc_get(map, 10i64, out_addr);
+    if (found4 != 1i8) { status = 7i32; }
+    if (raw load64(out_addr) != 101i64) { status = 8i32; }
+
+    // Remove key 10
+    int8:rem1 = raw mapc_remove(map, 10i64);
+    if (rem1 != 1i8) { status = 9i32; }
+    
+    // Get key 10 again (should be deleted)
+    int8:found5 = raw mapc_get(map, 10i64, out_addr);
+    if (found5 == 1i8) { status = 10i32; }
+    
+    // Rehash trigger: insert many elements to trigger chain rehashing
+    int64:i = 100i64;
+    while (i < 120i64) {
+        drop raw mapc_put(map, i, i * 10i64);
+        i = i + 1i64;
+    }
+    
+    // Check if rehashed correctly and capacity grew
+    int64:capacity = raw load64(map);
+    if (capacity <= 8i64) { status = 11i32; }
+    
+    // Verify an element after rehash
+    int8:found6 = raw mapc_get(map, 110i64, out_addr);
+    if (found6 != 1i8) { status = 12i32; }
+    if (raw load64(out_addr) != 1100i64) { status = 13i32; }
+
+    dalloc(out_ptr);
+    drop raw mapc_destroy(map);
+
+    exit status;
+};

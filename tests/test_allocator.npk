@@ -1,0 +1,21 @@
+use "../src/allocator.npk".*;
+use "../src/mem.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+
+pub func:main = int32(int32:argc, wild int8->:argv) {
+    int64:allocator = raw MapAllocator.create(32i64); // 32 byte entries
+    if (allocator == 0i64) { exit 1i32; }
+
+    int64:node1 = raw MapAllocator.alloc(allocator);
+    if (node1 == 0i64) { exit 2i32; }
+
+    int64:node2 = raw MapAllocator.alloc(allocator);
+    if (node2 == 0i64) { exit 3i32; }
+
+    drop raw MapAllocator.free(allocator, node1);
+    drop raw MapAllocator.free(allocator, node2);
+
+    drop raw MapAllocator.destroy(allocator);
+    exit 0i32;
+};
