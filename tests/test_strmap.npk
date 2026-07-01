@@ -1,0 +1,153 @@
+// tests/test_strmap.npk
+// Comprehensive test suite for strmap — string-keyed hash map.
+use "../src/mem.npk".*;
+use "../src/hash.npk".*;
+use "../src/strmap.npk".*;
+
+pub func:failsafe = int32(tbb32:err) { exit(err => int32); };
+
+// Helper: write a null-terminated string into a pre-allocated buffer at addr
+func:write_str = NIL(int64:addr, int8:c0, int8:c1, int8:c2, int8:c3,
+                      int8:c4, int8:c5, int8:c6, int8:c7) {
+    drop raw store8(addr,         c0);
+    drop raw store8(addr + 1i64,  c1);
+    drop raw store8(addr + 2i64,  c2);
+    drop raw store8(addr + 3i64,  c3);
+    drop raw store8(addr + 4i64,  c4);
+    drop raw store8(addr + 5i64,  c5);
+    drop raw store8(addr + 6i64,  c6);
+    drop raw store8(addr + 7i64,  c7);
+    pass;
+};
+
+pub func:main = int32() {
+    int32:status = 0i32;
+
+    // --- Allocate string buffers ---
+    // "hello\0"
+    wild int8->:s_hello = nodrop alloc(8i64);
+    int64:a_hello = @cast_unchecked<int64>(s_hello);
+    drop raw write_str(a_hello, 104i8, 101i8, 108i8, 108i8, 111i8, 0i8, 0i8, 0i8);
+
+    // "world\0"
+    wild int8->:s_world = nodrop alloc(8i64);
+    int64:a_world = @cast_unchecked<int64>(s_world);
+    drop raw write_str(a_world, 119i8, 111i8, 114i8, 108i8, 100i8, 0i8, 0i8, 0i8);
+
+    // "nitpick\0"
+    wild int8->:s_nitpick = nodrop alloc(8i64);
+    int64:a_nitpick = @cast_unchecked<int64>(s_nitpick);
+    drop raw write_str(a_nitpick, 110i8, 105i8, 116i8, 112i8, 105i8, 99i8, 107i8, 0i8);
+
+    // "foo\0"
+    wild int8->:s_foo = nodrop alloc(4i64);
+    int64:a_foo = @cast_unchecked<int64>(s_foo);
+    drop raw store8(a_foo,        102i8); // f
+    drop raw store8(a_foo + 1i64, 111i8); // o
+    drop raw store8(a_foo + 2i64, 111i8); // o
+    drop raw store8(a_foo + 3i64, 0i8);   // \0
+
+    // "bar\0"
+    wild int8->:s_bar = nodrop alloc(4i64);
+    int64:a_bar = @cast_unchecked<int64>(s_bar);
+    drop raw store8(a_bar,        98i8);  // b
+    drop raw store8(a_bar + 1i64, 97i8);  // a
+    drop raw store8(a_bar + 2i64, 114i8); // r
+    drop raw store8(a_bar + 3i64, 0i8);   // \0
+
+    // --- Create map ---
+    int64:map = raw strmap_create(8i64);
+    if (map == 0i64) { status = 1i32; }
+
+    // --- Basic insert and lookup ---
+    drop raw strmap_put(map, s_hello,   100i64);
+    drop raw strmap_put(map, s_world,   200i64);
+    drop raw strmap_put(map, s_nitpick, 300i64);
+
+    stack int64:out_val = 0i64;
+    int64:out_addr = @cast_unchecked<int64>(@out_val);
+
+    // Test: get "hello" -> 100
+    int8:f1 = raw strmap_get(map, s_hello, out_addr);
+    if (f1 != 1i8)                         { status = 10i32; }
+    if (raw load64(out_addr) != 100i64)    { status = 11i32; }
+
+    // Test: get "world" -> 200
+    int8:f2 = raw strmap_get(map, s_world, out_addr);
+    if (f2 != 1i8)                         { status = 12i32; }
+    if (raw load64(out_addr) != 200i64)    { status = 13i32; }
+
+    // Test: get "nitpick" -> 300
+    int8:f3 = raw strmap_get(map, s_nitpick, out_addr);
+    if (f3 != 1i8)                         { status = 14i32; }
+    if (raw load64(out_addr) != 300i64)    { status = 15i32; }
+
+    // Test: size = 3
+    if (raw strmap_size(map) != 3i64)      { status = 16i32; }
+
+    // --- Update existing key ---
+    drop raw strmap_put(map, s_hello, 101i64);
+    int8:f4 = raw strmap_get(map, s_hello, out_addr);
+    if (f4 != 1i8)                         { status = 20i32; }
+    if (raw load64(out_addr) != 101i64)    { status = 21i32; }
+    // Size must not change on update
+    if (raw strmap_size(map) != 3i64)      { status = 22i32; }
+
+    // --- Lookup missing key ---
+    int8:f5 = raw strmap_get(map, s_foo, out_addr);
+    if (f5 == 1i8)                         { status = 30i32; }
+
+    // --- Remove "world" ---
+    int8:rem1 = raw strmap_remove(map, s_world);
+    if (rem1 != 1i8)                       { status = 40i32; }
+    if (raw strmap_size(map) != 2i64)      { status = 41i32; }
+
+    // "world" should now be missing
+    int8:f6 = raw strmap_get(map, s_world, out_addr);
+    if (f6 == 1i8)                         { status = 42i32; }
+
+    // "hello" and "nitpick" still present
+    int8:f7 = raw strmap_get(map, s_hello, out_addr);
+    if (f7 != 1i8)                         { status = 43i32; }
+    int8:f8 = raw strmap_get(map, s_nitpick, out_addr);
+    if (f8 != 1i8)                         { status = 44i32; }
+
+    // --- Re-insert after remove (reuse tombstone) ---
+    drop raw strmap_put(map, s_world, 999i64);
+    int8:f9 = raw strmap_get(map, s_world, out_addr);
+    if (f9 != 1i8)                         { status = 50i32; }
+    if (raw load64(out_addr) != 999i64)    { status = 51i32; }
+    if (raw strmap_size(map) != 3i64)      { status = 52i32; }
+
+    // --- Remove non-existent key ---
+    int8:rem2 = raw strmap_remove(map, s_bar);
+    if (rem2 == 1i8)                       { status = 60i32; }
+
+    // --- Stress test: insert enough keys to trigger rehash ---
+    // Insert "foo" and "bar"
+    drop raw strmap_put(map, s_foo, 400i64);
+    drop raw strmap_put(map, s_bar, 500i64);
+    if (raw strmap_size(map) != 5i64)      { status = 70i32; }
+
+    // All keys still accessible after possible rehash
+    int8:fa = raw strmap_get(map, s_hello,   out_addr);
+    if (fa != 1i8)                         { status = 80i32; }
+    int8:fb = raw strmap_get(map, s_nitpick, out_addr);
+    if (fb != 1i8)                         { status = 81i32; }
+    int8:fc = raw strmap_get(map, s_foo,     out_addr);
+    if (fc != 1i8)                         { status = 82i32; }
+    if (raw load64(out_addr) != 400i64)    { status = 83i32; }
+    int8:fd = raw strmap_get(map, s_bar,     out_addr);
+    if (fd != 1i8)                         { status = 84i32; }
+    if (raw load64(out_addr) != 500i64)    { status = 85i32; }
+
+    // --- Cleanup ---
+    drop raw strmap_destroy(map);
+    dalloc(s_hello);
+    dalloc(s_world);
+    dalloc(s_nitpick);
+    dalloc(s_foo);
+    dalloc(s_bar);
+
+    exit status;
+};
