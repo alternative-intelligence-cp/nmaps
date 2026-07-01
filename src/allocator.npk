@@ -12,7 +12,7 @@ pub Type:MapAllocator = {
             pass 0i64;
         }
 
-        int64:handle = @cast_unchecked<int64>(blk);
+        int64:handle = cast_unchecked<int64>(blk);
         
         if (node_size < 8i64) {
             node_size = 8i64;
@@ -37,7 +37,7 @@ pub Type:MapAllocator = {
             drop raw store64(handle + 32i64, next_free);
             
             // Zero memory
-            drop @cast_unchecked<int64>(memset(@cast_unchecked<int8->>(free_head), 0i64, node_size));
+            drop cast_unchecked<int64>(memset(cast_unchecked<int8->>(free_head), 0i64, node_size));
             pass free_head;
         }
 
@@ -51,7 +51,7 @@ pub Type:MapAllocator = {
             int64:required_size = is (req_size > block_size) : req_size : block_size;
             wild int8->:blk = nodrop alloc(required_size);
             if (blk == NULL) { pass 0i64; }
-            int64:new_block = @cast_unchecked<int64>(blk);
+            int64:new_block = cast_unchecked<int64>(blk);
             drop raw store64(new_block, 0i64);
             drop raw store64(handle + 8i64, new_block);
             head_block = new_block;
@@ -62,7 +62,7 @@ pub Type:MapAllocator = {
             int64:required_size = is (req_size > block_size) : req_size : block_size;
             wild int8->:blk = nodrop alloc(required_size);
             if (blk == NULL) { pass 0i64; }
-            int64:new_block = @cast_unchecked<int64>(blk);
+            int64:new_block = cast_unchecked<int64>(blk);
             drop raw store64(new_block, head_block);
             drop raw store64(handle + 8i64, new_block);
             head_block = new_block;
@@ -74,7 +74,7 @@ pub Type:MapAllocator = {
         int64:ptr = head_block + offset;
         drop raw store64(handle + 16i64, offset + node_size);
 
-        drop @cast_unchecked<int64>(memset(@cast_unchecked<int8->>(ptr), 0i64, node_size));
+        drop cast_unchecked<int64>(memset(cast_unchecked<int8->>(ptr), 0i64, node_size));
 
         pass ptr;
     };
@@ -98,12 +98,12 @@ pub Type:MapAllocator = {
 
         while (head_block != 0i64) {
             int64:next_block = raw load64(head_block);
-            dalloc(@cast_unchecked<any->>(head_block));
+            dalloc(cast_unchecked<any->>(head_block));
             head_block = next_block;
         }
 
         // free the handle itself
-        dalloc(@cast_unchecked<any->>(handle));
+        dalloc(cast_unchecked<any->>(handle));
         pass 0i8;
     };
 };

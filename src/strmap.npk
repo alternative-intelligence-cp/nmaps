@@ -34,24 +34,24 @@ pub func:strmap_create = int64(int64:initial_capacity) {
     }
 
     wild int8->:header_ptr = nodrop alloc(40i64);
-    if ((@cast_unchecked<int64>(header_ptr)) == 0i64) { pass 0i64; }
+    if ((cast_unchecked<int64>(header_ptr)) == 0i64) { pass 0i64; }
 
     int64:buckets_size = initial_capacity * 24i64;
     wild int8->:buckets_ptr = nodrop alloc(buckets_size);
-    if ((@cast_unchecked<int64>(buckets_ptr)) == 0i64) {
+    if ((cast_unchecked<int64>(buckets_ptr)) == 0i64) {
         dalloc(header_ptr);
         pass 0i64;
     }
 
     // Zero buckets — sets all states to EMPTY (0)
-    int64:b_addr = @cast_unchecked<int64>(buckets_ptr);
+    int64:b_addr = cast_unchecked<int64>(buckets_ptr);
     int64:_zi = 0i64;
     while (_zi < buckets_size) {
         drop raw store8(b_addr + _zi, 0i8);
         _zi = _zi + 1i64;
     }
 
-    int64:h_addr = @cast_unchecked<int64>(header_ptr);
+    int64:h_addr = cast_unchecked<int64>(header_ptr);
     drop raw store64(h_addr,           initial_capacity);
     drop raw store64(h_addr + 8i64,    0i64);                              // size
     drop raw store64(h_addr + 16i64,   b_addr);                            // buckets
@@ -69,9 +69,9 @@ func:_strmap_rehash = int8(int64:map) {
     int64:new_bkt_size  = new_capacity * 24i64;
 
     wild int8->:new_bkts = nodrop alloc(new_bkt_size);
-    if ((@cast_unchecked<int64>(new_bkts)) == 0i64) { pass 0i8; }
+    if ((cast_unchecked<int64>(new_bkts)) == 0i64) { pass 0i8; }
 
-    int64:new_b_addr = @cast_unchecked<int64>(new_bkts);
+    int64:new_b_addr = cast_unchecked<int64>(new_bkts);
     int64:_zi2 = 0i64;
     while (_zi2 < new_bkt_size) {
         drop raw store8(new_b_addr + _zi2, 0i8);
@@ -88,7 +88,7 @@ func:_strmap_rehash = int8(int64:map) {
             int64:val   = raw load64(old_entry + 16i64);
 
             // Probe into new table
-            wild int8->:kstr = @cast_unchecked<int8->>(kptr);
+            wild int8->:kstr = cast_unchecked<int8->>(kptr);
             int64:hash       = raw hash_str(kstr);
             int64:idx        = hash % new_capacity;
             if (idx < 0i64) { idx = idx + new_capacity; }
@@ -116,7 +116,7 @@ func:_strmap_rehash = int8(int64:map) {
     drop raw store64(map + 24i64,   (new_capacity * 7i64) / 10i64);
     drop raw store64(map + 32i64,   0i64); // tombstone_count reset
 
-    dalloc(@cast_unchecked<any->>(old_buckets));
+    dalloc(cast_unchecked<any->>(old_buckets));
     pass 1i8;
 };
 
@@ -141,7 +141,7 @@ pub func:strmap_put = int8(int64:map, wild int8->:key, int64:val) {
 
     int64:buckets     = raw load64(map + 16i64);
     int64:hash        = raw hash_str(key);
-    int64:kptr        = @cast_unchecked<int64>(key);
+    int64:kptr        = cast_unchecked<int64>(key);
     int64:idx         = hash % capacity;
     if (idx < 0i64) { idx = idx + capacity; }
 
@@ -175,7 +175,7 @@ pub func:strmap_put = int8(int64:map, wild int8->:key, int64:val) {
                     pass 1i8;
                 }
                 // Full string compare
-                wild int8->:ekey = @cast_unchecked<int8->>(ekey_ptr);
+                wild int8->:ekey = cast_unchecked<int8->>(ekey_ptr);
                 int8:eq = raw str_eq(kptr, ekey_ptr);
                 if (eq == 1i8) {
                     drop raw store64(entry + 16i64, val);
@@ -215,7 +215,7 @@ pub func:strmap_put = int8(int64:map, wild int8->:key, int64:val) {
 pub func:strmap_get = int8(int64:map, wild int8->:key, int64:out_val_ptr) {
     int64:capacity = raw load64(map);
     int64:buckets  = raw load64(map + 16i64);
-    int64:kptr     = @cast_unchecked<int64>(key);
+    int64:kptr     = cast_unchecked<int64>(key);
     int64:hash     = raw hash_str(key);
     int64:idx      = hash % capacity;
     if (idx < 0i64) { idx = idx + capacity; }
@@ -260,7 +260,7 @@ pub func:strmap_remove = int8(int64:map, wild int8->:key) {
     int64:capacity = raw load64(map);
     int64:size     = raw load64(map + 8i64);
     int64:buckets  = raw load64(map + 16i64);
-    int64:kptr     = @cast_unchecked<int64>(key);
+    int64:kptr     = cast_unchecked<int64>(key);
     int64:hash     = raw hash_str(key);
     int64:idx      = hash % capacity;
     if (idx < 0i64) { idx = idx + capacity; }
@@ -312,8 +312,8 @@ pub func:strmap_destroy = int8(int64:map) {
     if (map == 0i64) { pass 0i8; }
     int64:buckets = raw load64(map + 16i64);
     if (buckets != 0i64) {
-        dalloc(@cast_unchecked<any->>(buckets));
+        dalloc(cast_unchecked<any->>(buckets));
     }
-    dalloc(@cast_unchecked<any->>(map));
+    dalloc(cast_unchecked<any->>(map));
     pass 1i8;
 };

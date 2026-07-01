@@ -8,9 +8,9 @@ pub func:fnv1a = int64(wild int8->:data, int64:len) {
     int64:hash = 0xcbf29ce484222325i64; // FNV offset basis 64
     int64:i = 0i64;
     while (i < len) {
-        int64:addr = (@cast_unchecked<int64>(data)) + i;
+        int64:addr = (cast_unchecked<int64>(data)) + i;
         int8:byte = raw load8(addr);
-        int64:b64 = @cast_unchecked<int64>(byte);
+        int64:b64 = cast_unchecked<int64>(byte);
 
         // Mask out sign extension since Nitpick types are signed
         b64 = b64 & 255i64;
@@ -28,9 +28,9 @@ pub func:fnv1a_32 = int32(wild int8->:data, int64:len) {
     int64:hash = 0x811c9dc5i64; // FNV offset basis 32
     int64:i = 0i64;
     while (i < len) {
-        int64:addr = (@cast_unchecked<int64>(data)) + i;
+        int64:addr = (cast_unchecked<int64>(data)) + i;
         int8:byte = raw load8(addr);
-        int64:b64 = @cast_unchecked<int64>(byte);
+        int64:b64 = cast_unchecked<int64>(byte);
         b64 = b64 & 255i64;
 
         hash = hash ^ b64;
@@ -38,7 +38,7 @@ pub func:fnv1a_32 = int32(wild int8->:data, int64:len) {
         hash = hash & 0xffffffffi64; // Keep 32 bits
         i = i + 1i64;
     }
-    pass @cast_unchecked<int32>(hash);
+    pass cast_unchecked<int32>(hash);
 };
 
 // MurmurHash3_x86_32
@@ -53,12 +53,12 @@ pub func:murmur3_32 = int32(wild int8->:data, int64:len) {
     int64:i = 0i64;
 
     while (i < blocks) {
-        int64:addr = (@cast_unchecked<int64>(data)) + (i * 4i64);
+        int64:addr = (cast_unchecked<int64>(data)) + (i * 4i64);
         // Read 4 bytes as little endian
-        int64:b0 = (@cast_unchecked<int64>(raw load8(addr))) & 255i64;
-        int64:b1 = (@cast_unchecked<int64>(raw load8(addr + 1i64))) & 255i64;
-        int64:b2 = (@cast_unchecked<int64>(raw load8(addr + 2i64))) & 255i64;
-        int64:b3 = (@cast_unchecked<int64>(raw load8(addr + 3i64))) & 255i64;
+        int64:b0 = (cast_unchecked<int64>(raw load8(addr))) & 255i64;
+        int64:b1 = (cast_unchecked<int64>(raw load8(addr + 1i64))) & 255i64;
+        int64:b2 = (cast_unchecked<int64>(raw load8(addr + 2i64))) & 255i64;
+        int64:b3 = (cast_unchecked<int64>(raw load8(addr + 3i64))) & 255i64;
 
         int64:k = b0 | (b1 << 8i64) | (b2 << 16i64) | (b3 << 24i64);
 
@@ -77,27 +77,27 @@ pub func:murmur3_32 = int32(wild int8->:data, int64:len) {
     int64:tail_idx = blocks * 4i64;
     int64:tail_len = len - tail_idx;
     int64:k1 = 0i64;
-    int64:tail_addr = (@cast_unchecked<int64>(data)) + tail_idx;
+    int64:tail_addr = (cast_unchecked<int64>(data)) + tail_idx;
 
     if (tail_len == 3i64) {
-        k1 = k1 ^ (((@cast_unchecked<int64>(raw load8(tail_addr + 2i64))) & 255i64) << 16i64);
-        k1 = k1 ^ (((@cast_unchecked<int64>(raw load8(tail_addr + 1i64))) & 255i64) << 8i64);
-        k1 = k1 ^ (((@cast_unchecked<int64>(raw load8(tail_addr))) & 255i64));
+        k1 = k1 ^ (((cast_unchecked<int64>(raw load8(tail_addr + 2i64))) & 255i64) << 16i64);
+        k1 = k1 ^ (((cast_unchecked<int64>(raw load8(tail_addr + 1i64))) & 255i64) << 8i64);
+        k1 = k1 ^ (((cast_unchecked<int64>(raw load8(tail_addr))) & 255i64));
         k1 = (k1 * c1) & 0xffffffffi64;
         k1 = ((k1 << 15i64) | (k1 >> 17i64)) & 0xffffffffi64;
         k1 = (k1 * c2) & 0xffffffffi64;
         hash = hash ^ k1;
     } else {
         if (tail_len == 2i64) {
-            k1 = k1 ^ (((@cast_unchecked<int64>(raw load8(tail_addr + 1i64))) & 255i64) << 8i64);
-            k1 = k1 ^ (((@cast_unchecked<int64>(raw load8(tail_addr))) & 255i64));
+            k1 = k1 ^ (((cast_unchecked<int64>(raw load8(tail_addr + 1i64))) & 255i64) << 8i64);
+            k1 = k1 ^ (((cast_unchecked<int64>(raw load8(tail_addr))) & 255i64));
             k1 = (k1 * c1) & 0xffffffffi64;
             k1 = ((k1 << 15i64) | (k1 >> 17i64)) & 0xffffffffi64;
             k1 = (k1 * c2) & 0xffffffffi64;
             hash = hash ^ k1;
         } else {
             if (tail_len == 1i64) {
-                k1 = k1 ^ (((@cast_unchecked<int64>(raw load8(tail_addr))) & 255i64));
+                k1 = k1 ^ (((cast_unchecked<int64>(raw load8(tail_addr))) & 255i64));
                 k1 = (k1 * c1) & 0xffffffffi64;
                 k1 = ((k1 << 15i64) | (k1 >> 17i64)) & 0xffffffffi64;
                 k1 = (k1 * c2) & 0xffffffffi64;
@@ -114,12 +114,12 @@ pub func:murmur3_32 = int32(wild int8->:data, int64:len) {
     hash = (hash * 0xc2b2ae35i64) & 0xffffffffi64;
     hash = hash ^ (hash >> 16i64);
 
-    pass @cast_unchecked<int32>(hash);
+    pass cast_unchecked<int32>(hash);
 };
 
 // Very simple string hash wrapper for convenience
 pub func:hash_str = int64(wild int8->:str) {  
-    int64:addr = @cast_unchecked<int64>(str);  
+    int64:addr = cast_unchecked<int64>(str);  
     if (addr == 0i64) { pass 0i64; }  
       
     int64:hash = 0xcbf29ce484222325i64; // FNV offset basis 64  
@@ -127,7 +127,7 @@ pub func:hash_str = int64(wild int8->:str) {
     int64:len = 0i64;  
       
     while (byte != 0i8) {  
-        int64:b64 = (@cast_unchecked<int64>(byte)) & 255i64;  
+        int64:b64 = (cast_unchecked<int64>(byte)) & 255i64;  
         hash = hash ^ b64;  
         hash = hash * 0x100000001b3i64; // FNV prime 64  
         len = len + 1i64;  

@@ -34,13 +34,13 @@ pub func:lru_create = int64(int64:max_capacity) {
     }
     
     wild int8->:header_ptr = nodrop alloc(48i64);
-    if ((@cast_unchecked<int64>(header_ptr)) == 0i64) {
+    if ((cast_unchecked<int64>(header_ptr)) == 0i64) {
         drop raw MapAllocator.destroy(allocator);
         drop raw destroy(intmap);
         pass 0i64;
     }
     
-    int64:h_addr = (@cast_unchecked<int64>(header_ptr));
+    int64:h_addr = (cast_unchecked<int64>(header_ptr));
     drop raw store64(h_addr, intmap);
     drop raw store64(h_addr + 8i64, allocator);
     drop raw store64(h_addr + 16i64, 0i64); // head
@@ -95,7 +95,7 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
     int64:size = raw load64(lru + 40i64);
     
     stack int64:node_ptr_out_val = 0i64;
-    int64:node_ptr_addr = @cast_unchecked<int64>(@node_ptr_out_val);
+    int64:node_ptr_addr = cast_unchecked<int64>(@node_ptr_out_val);
     
     int8:exists = raw get(intmap, key, node_ptr_addr);
     if (exists == 1i8) {
@@ -138,7 +138,7 @@ pub func:lru_get = int8(int64:lru, int64:key, int64:out_val_ptr) {
     int64:intmap = raw load64(lru);
     
     stack int64:node_ptr_out_val = 0i64;
-    int64:node_ptr_addr = @cast_unchecked<int64>(@node_ptr_out_val);
+    int64:node_ptr_addr = cast_unchecked<int64>(@node_ptr_out_val);
     
     int8:exists = raw get(intmap, key, node_ptr_addr);
     if (exists == 1i8) {
@@ -168,6 +168,6 @@ pub func:lru_destroy = int8(int64:lru) {
     if (allocator != 0i64) {
         drop raw MapAllocator.destroy(allocator);
     }
-    dalloc(@cast_unchecked<any->>(lru));
+    dalloc(cast_unchecked<any->>(lru));
     pass 1i8;
 };

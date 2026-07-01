@@ -13,7 +13,7 @@ pub func:main = int32() {
     if (mapc == 0i64) { exit 2i32; }
     
     stack int64:out_val = 0i64;
-    int64:out_addr = @cast_unchecked<int64>(@out_val);
+    int64:out_addr = cast_unchecked<int64>(@out_val);
     
     // 1. Insert 10,000 elements
     int64:i = 0i64;

@@ -24,23 +24,23 @@ pub func:mapv_create = int64(int64:initial_capacity) {
         initial_capacity = 8i64;
     }
     wild int8->:header_ptr = nodrop alloc(32i64);
-    if ((@cast_unchecked<int64>(header_ptr)) == 0i64) { pass 0i64; }
+    if ((cast_unchecked<int64>(header_ptr)) == 0i64) { pass 0i64; }
     
     int64:buckets_size = initial_capacity * 40i64;
     wild int8->:buckets_ptr = nodrop alloc(buckets_size);
-    if ((@cast_unchecked<int64>(buckets_ptr)) == 0i64) {
+    if ((cast_unchecked<int64>(buckets_ptr)) == 0i64) {
         dalloc(header_ptr);
         pass 0i64;
     }
     
-    int64:b_addr = (@cast_unchecked<int64>(buckets_ptr));
+    int64:b_addr = (cast_unchecked<int64>(buckets_ptr));
     int64:i = 0i64;
     while (i < buckets_size) {
         drop raw store8(b_addr + i, 0i8);
         i = i + 1i64;
     }
     
-    int64:h_addr = (@cast_unchecked<int64>(header_ptr));
+    int64:h_addr = (cast_unchecked<int64>(header_ptr));
     drop raw store64(h_addr, initial_capacity);
     drop raw store64(h_addr + 8i64, 0i64);
     drop raw store64(h_addr + 16i64, b_addr);
@@ -51,7 +51,7 @@ pub func:mapv_create = int64(int64:initial_capacity) {
 // Internal hash helper combining tag and key
 func:_mapv_hash = int64(int64:tag, int64:key) {
     if (tag == 5i64) { // MAP_TAG_STR
-        wild int8->:str_ptr = @cast_unchecked<int8->>(key);
+        wild int8->:str_ptr = cast_unchecked<int8->>(key);
         pass raw hash_str(str_ptr);
     }
     // Default to fast int mixer
@@ -75,9 +75,9 @@ func:_mapv_rehash = int8(int64:map) {
     int64:new_capacity = old_capacity * 2i64;
     int64:new_buckets_size = new_capacity * 40i64;
     wild int8->:new_buckets_ptr = nodrop alloc(new_buckets_size);
-    if ((@cast_unchecked<int64>(new_buckets_ptr)) == 0i64) { pass 0i8; }
+    if ((cast_unchecked<int64>(new_buckets_ptr)) == 0i64) { pass 0i8; }
     
-    int64:new_b_addr = (@cast_unchecked<int64>(new_buckets_ptr));
+    int64:new_b_addr = (cast_unchecked<int64>(new_buckets_ptr));
     
     int64:i = 0i64;
     while (i < new_buckets_size) {
@@ -104,7 +104,7 @@ func:_mapv_rehash = int8(int64:map) {
         j = j + 1i64;
     }
     
-    dalloc(@cast_unchecked<any->>(old_buckets));
+    dalloc(cast_unchecked<any->>(old_buckets));
     pass 1i8;
 };
 
@@ -255,8 +255,8 @@ pub func:mapv_destroy = int8(int64:map) {
     if (map == 0i64) { pass 0i8; }
     int64:buckets = raw load64(map + 16i64);
     if (buckets != 0i64) {
-        dalloc(@cast_unchecked<any->>(buckets));
+        dalloc(cast_unchecked<any->>(buckets));
     }
-    dalloc(@cast_unchecked<any->>(map));
+    dalloc(cast_unchecked<any->>(map));
     pass 1i8;
 };

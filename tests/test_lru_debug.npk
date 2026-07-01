@@ -8,7 +8,7 @@ pub func:failsafe = int32(tbb32:err) { exit(err => int32); };
 pub func:main = int32() {
     int64:lru = raw lru_create(3i64);
     stack int64:out_val = 0i64;
-    int64:out_addr = @cast_unchecked<int64>(@out_val);
+    int64:out_addr = cast_unchecked<int64>(@out_val);
     
     drop raw lru_put(lru, 10i64, 100i64);
     drop raw lru_put(lru, 20i64, 200i64);

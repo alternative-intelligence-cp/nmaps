@@ -14,7 +14,7 @@ pub func:main = int32() {
     if (rem != 1i8) { exit 2i32; }
     
     stack int64:out_val = 0i64;
-    int64:out_addr = @cast_unchecked<int64>(@out_val);
+    int64:out_addr = cast_unchecked<int64>(@out_val);
     
     int8:g1 = raw get(map, 20i64, out_addr);
     

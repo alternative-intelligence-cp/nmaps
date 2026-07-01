@@ -26,22 +26,22 @@ pub func:main = int32() {
     // --- Allocate string buffers ---
     // "hello\0"
     wild int8->:s_hello = nodrop alloc(8i64);
-    int64:a_hello = @cast_unchecked<int64>(s_hello);
+    int64:a_hello = cast_unchecked<int64>(s_hello);
     drop raw write_str(a_hello, 104i8, 101i8, 108i8, 108i8, 111i8, 0i8, 0i8, 0i8);
 
     // "world\0"
     wild int8->:s_world = nodrop alloc(8i64);
-    int64:a_world = @cast_unchecked<int64>(s_world);
+    int64:a_world = cast_unchecked<int64>(s_world);
     drop raw write_str(a_world, 119i8, 111i8, 114i8, 108i8, 100i8, 0i8, 0i8, 0i8);
 
     // "nitpick\0"
     wild int8->:s_nitpick = nodrop alloc(8i64);
-    int64:a_nitpick = @cast_unchecked<int64>(s_nitpick);
+    int64:a_nitpick = cast_unchecked<int64>(s_nitpick);
     drop raw write_str(a_nitpick, 110i8, 105i8, 116i8, 112i8, 105i8, 99i8, 107i8, 0i8);
 
     // "foo\0"
     wild int8->:s_foo = nodrop alloc(4i64);
-    int64:a_foo = @cast_unchecked<int64>(s_foo);
+    int64:a_foo = cast_unchecked<int64>(s_foo);
     drop raw store8(a_foo,        102i8); // f
     drop raw store8(a_foo + 1i64, 111i8); // o
     drop raw store8(a_foo + 2i64, 111i8); // o
@@ -49,7 +49,7 @@ pub func:main = int32() {
 
     // "bar\0"
     wild int8->:s_bar = nodrop alloc(4i64);
-    int64:a_bar = @cast_unchecked<int64>(s_bar);
+    int64:a_bar = cast_unchecked<int64>(s_bar);
     drop raw store8(a_bar,        98i8);  // b
     drop raw store8(a_bar + 1i64, 97i8);  // a
     drop raw store8(a_bar + 2i64, 114i8); // r
@@ -65,7 +65,7 @@ pub func:main = int32() {
     drop raw strmap_put(map, s_nitpick, 300i64);
 
     stack int64:out_val = 0i64;
-    int64:out_addr = @cast_unchecked<int64>(@out_val);
+    int64:out_addr = cast_unchecked<int64>(@out_val);
 
     // Test: get "hello" -> 100
     int8:f1 = raw strmap_get(map, s_hello, out_addr);

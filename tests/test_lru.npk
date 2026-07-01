@@ -13,7 +13,7 @@ pub func:main = int32() {
 
     int32:status = 0i32;
     stack int64:out_val = 0i64;
-    int64:out_addr = @cast_unchecked<int64>(@out_val);
+    int64:out_addr = cast_unchecked<int64>(@out_val);
     
     // Put 4 elements (10, 20, 30, 40)
     drop raw lru_put(lru, 10i64, 100i64);

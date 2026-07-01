@@ -14,11 +14,11 @@ pub func:main = int32() {
     int32:status = 0i32;
     stack int64:out_tag = 0i64;
     stack int64:out_val = 0i64;
-    int64:tag_addr = @cast_unchecked<int64>(@out_tag);
-    int64:val_addr = @cast_unchecked<int64>(@out_val);
+    int64:tag_addr = cast_unchecked<int64>(@out_tag);
+    int64:val_addr = cast_unchecked<int64>(@out_val);
 
     wild int8->:str1 = nodrop alloc(6i64);
-    int64:s1_addr = (@cast_unchecked<int64>(str1));
+    int64:s1_addr = (cast_unchecked<int64>(str1));
     drop raw store8(s1_addr, 104i8); // h
     drop raw store8(s1_addr + 1i64, 101i8); // e
     drop raw store8(s1_addr + 2i64, 108i8); // l

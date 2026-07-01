@@ -6,7 +6,7 @@ pub func:failsafe = int32(tbb32:err) { exit(err => int32); };
 pub func:main = int32() {
     wild int8->:str1_addr = nodrop alloc(6i64);
     defer { dalloc(str1_addr); }
-    int64:addr = @cast_unchecked<int64>(str1_addr);
+    int64:addr = cast_unchecked<int64>(str1_addr);
     drop raw store8(addr, 104i8);
     drop raw store8(addr + 1i64, 101i8);
     drop raw store8(addr + 2i64, 108i8);
@@ -14,8 +14,8 @@ pub func:main = int32() {
     drop raw store8(addr + 4i64, 111i8);
     drop raw store8(addr + 5i64, 0i8);
 
-    int64:h1 = raw fnv1a(@cast_unchecked<int8->>(addr), 5i64);
-    int64:h4 = raw hash_str(@cast_unchecked<int8->>(addr));
+    int64:h1 = raw fnv1a(cast_unchecked<int8->>(addr), 5i64);
+    int64:h4 = raw hash_str(cast_unchecked<int8->>(addr));
 
     if (h1 != h4) {
         exit 1i32;

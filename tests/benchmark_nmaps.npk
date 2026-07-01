@@ -38,7 +38,7 @@ pub func:main = int32() {
     
     // Retrievals
     stack int64:out_val = 0i64;
-    int64:out_addr = @cast_unchecked<int64>(@out_val);
+    int64:out_addr = cast_unchecked<int64>(@out_val);
     
     i = 0i64;
     while (i < num_items) {
