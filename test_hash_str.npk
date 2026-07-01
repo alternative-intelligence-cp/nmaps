@@ -1,7 +1,7 @@
 use "src/hash.npk".*;
 use "src/mem.npk".*;
 
-pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+pub func:failsafe = int32(tbb32:err) { exit (err => int32); };
 
 pub func:main = int32() {
     wild int8->:str1_addr = nodrop alloc(6i64);

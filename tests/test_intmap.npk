@@ -1,15 +1,15 @@
 use "../src/intmap.npk".*;
 use "../src/mem.npk".*;
 
-pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+pub func:failsafe = int32(tbb32:err) { exit(err => int32); };
 
 pub func:main = int32() {
     int64:map = raw create(8i64);
     if (map == 0i64) { exit 1i32; }
 
     int32:status = 0i32;
-    wild int8->:out_ptr = nodrop alloc(8i64);
-    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    stack int64:out_val = 0i64;
+    int64:out_addr = @cast_unchecked<int64>(@out_val);
     
     // Put key 10 -> 100
     drop raw put(map, 10i64, 100i64);
@@ -60,7 +60,7 @@ pub func:main = int32() {
     if (found6 != 1i8) { status = 12i32; }
     if (raw load64(out_addr) != 1100i64) { status = 13i32; }
 
-    dalloc(out_ptr);
+    
     drop raw destroy(map);
 
     exit status;

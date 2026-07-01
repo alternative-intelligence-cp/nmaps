@@ -5,20 +5,20 @@ use "../src/types.npk".*;
 use "../src/intmap.npk".*;
 use "../src/mapv.npk".*;
 
-pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+pub func:failsafe = int32(tbb32:err) { exit(err => int32); };
 
 pub func:main = int32() {
     int64:map = raw mapv_create(8i64);
     if (map == 0i64) { exit 1i32; }
 
     int32:status = 0i32;
-    wild int8->:out_ptr = nodrop alloc(16i64);
-    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
-    int64:tag_addr = out_addr;
-    int64:val_addr = out_addr + 8i64;
+    stack int64:out_tag = 0i64;
+    stack int64:out_val = 0i64;
+    int64:tag_addr = @cast_unchecked<int64>(@out_tag);
+    int64:val_addr = @cast_unchecked<int64>(@out_val);
 
     wild int8->:str1 = nodrop alloc(6i64);
-    int64:s1_addr = (@cast_unchecked<int64>(str1)) & 281474976710655i64;
+    int64:s1_addr = (@cast_unchecked<int64>(str1));
     drop raw store8(s1_addr, 104i8); // h
     drop raw store8(s1_addr + 1i64, 101i8); // e
     drop raw store8(s1_addr + 2i64, 108i8); // l
@@ -53,7 +53,7 @@ pub func:main = int32() {
     if (f3 == 1i8) { status = 9i32; }
 
     dalloc(str1);
-    dalloc(out_ptr);
+    
     drop raw mapv_destroy(map);
 
     exit status;

@@ -4,7 +4,7 @@ use "../src/intmap.npk".*;
 use "../src/mapc.npk".*;
 use "../src/treemap.npk".*;
 
-pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+pub func:failsafe = int32(tbb32:err) { exit(err => int32); };
 
 pub func:main = int32() {
     int64:num_items = 100000i64;
@@ -37,9 +37,8 @@ pub func:main = int32() {
     }
     
     // Retrievals
-    wild int8->:out_ptr = nodrop alloc(8i64);
-    defer { dalloc(out_ptr); }
-    int64:out_addr = (@cast_unchecked<int64>(out_ptr)) & 281474976710655i64;
+    stack int64:out_val = 0i64;
+    int64:out_addr = @cast_unchecked<int64>(@out_val);
     
     i = 0i64;
     while (i < num_items) {
@@ -65,8 +64,7 @@ pub func:main = int32() {
     drop raw destroy(intmap);
     drop raw mapc_destroy(mapc);
     
-    // we don't have a treemap_destroy yet, so treemap leaks its nodes at program exit.
-    // that's okay for the benchmark script!
+    drop raw treemap_destroy(treemap);
 
     exit 0i32;
 };

@@ -25,7 +25,7 @@ pub func:treemap_create = int64() {
         pass 0i64;
     }
     
-    int64:h_addr = (@cast_unchecked<int64>(header_ptr)) & 281474976710655i64;
+    int64:h_addr = (@cast_unchecked<int64>(header_ptr));
     drop raw store64(h_addr, 0i64); // root = NULL
     drop raw store64(h_addr + 8i64, 0i64); // size = 0
     drop raw store64(h_addr + 16i64, allocator);
@@ -165,7 +165,7 @@ func:_treemap_remove_node = int64(int64:root, int64:key, int64:allocator, int64:
             drop raw store64(root + 8i64, min_val);
             
             // Delete min_node from right subtree
-            int64:dummy_flag = 0i64; // recursive call already set deleted_flag_ptr
+            // recursive call already set deleted_flag_ptr
             int64:new_right = raw _treemap_remove_node(right, min_key, allocator, deleted_flag_ptr);
             drop raw store64(root + 24i64, new_right);
             
@@ -178,15 +178,15 @@ pub func:treemap_remove = int8(int64:map, int64:key) {
     int64:root = raw load64(map);
     int64:allocator = raw load64(map + 16i64);
     
-    wild int8->:flag_ptr = nodrop alloc(8i64);
-    int64:flag_addr = (@cast_unchecked<int64>(flag_ptr)) & 281474976710655i64;
+    stack int8:flag = 0i8;
+    int64:flag_addr = @cast_unchecked<int64>(@flag);
     drop raw store8(flag_addr, 0i8);
     
     int64:new_root = raw _treemap_remove_node(root, key, allocator, flag_addr);
     drop raw store64(map, new_root);
     
     int8:deleted = raw load8(flag_addr);
-    dalloc(flag_ptr);
+    
     
     if (deleted == 1i8) {
         int64:s = raw load64(map + 8i64);

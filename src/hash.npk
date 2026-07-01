@@ -118,12 +118,20 @@ pub func:murmur3_32 = int32(wild int8->:data, int64:len) {
 };
 
 // Very simple string hash wrapper for convenience
-pub func:hash_str = int64(wild int8->:str) {
-    if ((@cast_unchecked<int64>(str)) == 0i64) { pass 0i64; }
-    int64:len = 0i64;
-    int64:addr = @cast_unchecked<int64>(str);
-    while (raw load8(addr + len) != 0i8) {
-        len = len + 1i64;
-    }
-    pass raw fnv1a(str, len);
+pub func:hash_str = int64(wild int8->:str) {  
+    int64:addr = @cast_unchecked<int64>(str);  
+    if (addr == 0i64) { pass 0i64; }  
+      
+    int64:hash = 0xcbf29ce484222325i64; // FNV offset basis 64  
+    int8:byte = raw load8(addr);  
+    int64:len = 0i64;  
+      
+    while (byte != 0i8) {  
+        int64:b64 = (@cast_unchecked<int64>(byte)) & 255i64;  
+        hash = hash ^ b64;  
+        hash = hash * 0x100000001b3i64; // FNV prime 64  
+        len = len + 1i64;  
+        byte = raw load8(addr + len);  
+    }  
+    pass hash;  
 };

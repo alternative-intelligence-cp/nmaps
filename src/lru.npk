@@ -20,8 +20,8 @@ pub struct:LRUHeader = {
 // [24..31]: next
 
 pub func:lru_create = int64(int64:max_capacity) {
-    if (max_capacity < 4i64) {
-        max_capacity = 4i64;
+    if (max_capacity < 2i64) {
+        max_capacity = 2i64;
     }
     
     int64:intmap = raw create(max_capacity);
@@ -40,7 +40,7 @@ pub func:lru_create = int64(int64:max_capacity) {
         pass 0i64;
     }
     
-    int64:h_addr = (@cast_unchecked<int64>(header_ptr)) & 281474976710655i64;
+    int64:h_addr = (@cast_unchecked<int64>(header_ptr));
     drop raw store64(h_addr, intmap);
     drop raw store64(h_addr + 8i64, allocator);
     drop raw store64(h_addr + 16i64, 0i64); // head
@@ -94,8 +94,8 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
     int64:capacity = raw load64(lru + 32i64);
     int64:size = raw load64(lru + 40i64);
     
-    wild int8->:node_ptr_out = nodrop alloc(8i64);
-    int64:node_ptr_addr = (@cast_unchecked<int64>(node_ptr_out)) & 281474976710655i64;
+    stack int64:node_ptr_out_val = 0i64;
+    int64:node_ptr_addr = @cast_unchecked<int64>(@node_ptr_out_val);
     
     int8:exists = raw get(intmap, key, node_ptr_addr);
     if (exists == 1i8) {
@@ -103,12 +103,15 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
         drop raw store64(node + 8i64, val);
         drop raw _lru_detach(lru, node);
         drop raw _lru_attach(lru, node);
-        dalloc(node_ptr_out);
+        
         pass 1i8;
     }
     
-    dalloc(node_ptr_out);
     
+    
+    int64:new_node = raw MapAllocator.alloc(allocator);
+    if (new_node == 0i64) { pass 0i8; }
+
     if (size >= capacity) {
         // Evict tail
         int64:tail = raw load64(lru + 24i64);
@@ -120,9 +123,6 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
             size = size - 1i64;
         }
     }
-    
-    int64:new_node = raw MapAllocator.alloc(allocator);
-    if (new_node == 0i64) { pass 0i8; }
     
     drop raw store64(new_node, key);
     drop raw store64(new_node + 8i64, val);
@@ -137,8 +137,8 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
 pub func:lru_get = int8(int64:lru, int64:key, int64:out_val_ptr) {
     int64:intmap = raw load64(lru);
     
-    wild int8->:node_ptr_out = nodrop alloc(8i64);
-    int64:node_ptr_addr = (@cast_unchecked<int64>(node_ptr_out)) & 281474976710655i64;
+    stack int64:node_ptr_out_val = 0i64;
+    int64:node_ptr_addr = @cast_unchecked<int64>(@node_ptr_out_val);
     
     int8:exists = raw get(intmap, key, node_ptr_addr);
     if (exists == 1i8) {
@@ -150,11 +150,11 @@ pub func:lru_get = int8(int64:lru, int64:key, int64:out_val_ptr) {
         drop raw _lru_detach(lru, node);
         drop raw _lru_attach(lru, node);
         
-        dalloc(node_ptr_out);
+        
         pass 1i8;
     }
     
-    dalloc(node_ptr_out);
+    
     pass 0i8;
 };
 

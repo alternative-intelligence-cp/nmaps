@@ -4,11 +4,12 @@ use "hash.npk".*;
 use "types.npk".*;
 use "intmap.npk".*;
 
-// Header size: 24 bytes
+// Header size: 32 bytes
 pub struct:MapVHeader = {
     int64:capacity;  // 0..7
     int64:size;      // 8..15
     int64:buckets;   // 16..23 (int64 pointer to contiguous memory)
+    int64:threshold; // 24..31
 };
 
 // MapV Bucket is 40 bytes
@@ -22,7 +23,7 @@ pub func:mapv_create = int64(int64:initial_capacity) {
     if (initial_capacity < 8i64) {
         initial_capacity = 8i64;
     }
-    wild int8->:header_ptr = nodrop alloc(24i64);
+    wild int8->:header_ptr = nodrop alloc(32i64);
     if ((@cast_unchecked<int64>(header_ptr)) == 0i64) { pass 0i64; }
     
     int64:buckets_size = initial_capacity * 40i64;
@@ -32,17 +33,18 @@ pub func:mapv_create = int64(int64:initial_capacity) {
         pass 0i64;
     }
     
-    int64:b_addr = (@cast_unchecked<int64>(buckets_ptr)) & 281474976710655i64;
+    int64:b_addr = (@cast_unchecked<int64>(buckets_ptr));
     int64:i = 0i64;
     while (i < buckets_size) {
         drop raw store8(b_addr + i, 0i8);
         i = i + 1i64;
     }
     
-    int64:h_addr = (@cast_unchecked<int64>(header_ptr)) & 281474976710655i64;
+    int64:h_addr = (@cast_unchecked<int64>(header_ptr));
     drop raw store64(h_addr, initial_capacity);
     drop raw store64(h_addr + 8i64, 0i64);
     drop raw store64(h_addr + 16i64, b_addr);
+    drop raw store64(h_addr + 24i64, (initial_capacity * 7i64) / 10i64);
     pass h_addr;
 };
 
@@ -75,7 +77,7 @@ func:_mapv_rehash = int8(int64:map) {
     wild int8->:new_buckets_ptr = nodrop alloc(new_buckets_size);
     if ((@cast_unchecked<int64>(new_buckets_ptr)) == 0i64) { pass 0i8; }
     
-    int64:new_b_addr = (@cast_unchecked<int64>(new_buckets_ptr)) & 281474976710655i64;
+    int64:new_b_addr = (@cast_unchecked<int64>(new_buckets_ptr));
     
     int64:i = 0i64;
     while (i < new_buckets_size) {
@@ -86,6 +88,7 @@ func:_mapv_rehash = int8(int64:map) {
     drop raw store64(map, new_capacity);
     drop raw store64(map + 16i64, new_b_addr);
     drop raw store64(map + 8i64, 0i64);
+    drop raw store64(map + 24i64, (new_capacity * 7i64) / 10i64);
     
     int64:j = 0i64;
     while (j < old_capacity) {
@@ -109,7 +112,7 @@ pub func:mapv_put = int8(int64:map, int64:key_tag, int64:key, int64:val_tag, int
     int64:capacity = raw load64(map);
     int64:size = raw load64(map + 8i64);
     
-    int64:threshold = (capacity * 7i64) / 10i64;
+    int64:threshold = raw load64(map + 24i64);
     if (size >= threshold) {
         drop raw _mapv_rehash(map);
         capacity = raw load64(map);
@@ -161,6 +164,18 @@ pub func:mapv_put = int8(int64:map, int64:key_tag, int64:key, int64:val_tag, int
         if (idx >= capacity) { idx = 0i64; }
         i = i + 1i64;
     }
+    
+    if (first_deleted_idx != -1i64) {
+        int64:entry_addr = buckets + (first_deleted_idx * 40i64);
+        drop raw store64(entry_addr, 1i64); // STATE_OCCUPIED
+        drop raw store64(entry_addr + 8i64, key_tag);
+        drop raw store64(entry_addr + 16i64, key);
+        drop raw store64(entry_addr + 24i64, val_tag);
+        drop raw store64(entry_addr + 32i64, val);
+        drop raw store64(map + 8i64, size + 1i64);
+        pass 1i8;
+    }
+    
     pass 0i8;
 };
 

@@ -1,7 +1,8 @@
-pub func:failsafe = int32(tbb32:err) { exit 1i32; };
+pub func:failsafe = int32(tbb32:err) { exit (err => int32); };
 pub func:main = int32() {
     int64:hash = -2846555194553202651i64; // 14695981039346656037
     hash = hash ^ 97i64; // 'a'
     hash = hash * 1099511628211i64;
+    drop hash;
     exit 0i32;
 };
