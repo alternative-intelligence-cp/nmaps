@@ -103,6 +103,7 @@ pub struct:IntMapHeader = {
 
     // put key/value
     pub func:put = int8(int64:map, int64:key, int64:val) {
+        if (map == 0i64) { pass 0i8; }
         int64:capacity = raw load64(map);
         int64:size = raw load64(map + 8i64);
         
@@ -174,6 +175,7 @@ pub struct:IntMapHeader = {
     // get value
     // To support returning success flag and value, we return int8, and take a pointer for output.
     pub func:get = int8(int64:map, int64:key, int64:out_val_ptr) {
+        if (map == 0i64) { pass 0i8; }
         int64:capacity = raw load64(map);
         int64:buckets = raw load64(map + 16i64);
         
@@ -213,6 +215,7 @@ pub struct:IntMapHeader = {
 
     // remove key
     pub func:remove = int8(int64:map, int64:key) {
+        if (map == 0i64) { pass 0i8; }
         int64:capacity = raw load64(map);
         int64:size = raw load64(map + 8i64);
         int64:buckets = raw load64(map + 16i64);

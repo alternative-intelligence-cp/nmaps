@@ -109,11 +109,8 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
     
     
     
-    int64:new_node = raw MapAllocator.alloc(allocator);
-    if (new_node == 0i64) { pass 0i8; }
-
     if (size >= capacity) {
-        // Evict tail
+        // Evict LRU tail before allocating new node
         int64:tail = raw load64(lru + 24i64);
         if (tail != 0i64) {
             int64:tail_key = raw load64(tail);
@@ -123,6 +120,10 @@ pub func:lru_put = int8(int64:lru, int64:key, int64:val) {
             size = size - 1i64;
         }
     }
+    
+    // Allocate new node AFTER eviction (no orphan risk)
+    int64:new_node = raw MapAllocator.alloc(allocator);
+    if (new_node == 0i64) { pass 0i8; }
     
     drop raw store64(new_node, key);
     drop raw store64(new_node + 8i64, val);

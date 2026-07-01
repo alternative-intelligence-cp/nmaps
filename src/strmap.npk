@@ -123,6 +123,7 @@ func:_strmap_rehash = int8(int64:map) {
 // Insert or update key/val. key must be a live null-terminated string.
 // Returns 1 on success, 0 on OOM (rehash failure).
 pub func:strmap_put = int8(int64:map, wild int8->:key, int64:val) {
+    if (map == 0i64) { pass 0i8; }
     int64:capacity    = raw load64(map);
     int64:size        = raw load64(map + 8i64);
     int64:threshold   = raw load64(map + 24i64);
@@ -213,6 +214,7 @@ pub func:strmap_put = int8(int64:map, wild int8->:key, int64:val) {
 // Lookup key. Writes value to *out_val_ptr if found.
 // Returns 1 if found, 0 if not found.
 pub func:strmap_get = int8(int64:map, wild int8->:key, int64:out_val_ptr) {
+    if (map == 0i64) { pass 0i8; }
     int64:capacity = raw load64(map);
     int64:buckets  = raw load64(map + 16i64);
     int64:kptr     = cast_unchecked<int64>(key);
@@ -257,6 +259,7 @@ pub func:strmap_get = int8(int64:map, wild int8->:key, int64:out_val_ptr) {
 
 // Remove key. Returns 1 if found and removed, 0 if not found.
 pub func:strmap_remove = int8(int64:map, wild int8->:key) {
+    if (map == 0i64) { pass 0i8; }
     int64:capacity = raw load64(map);
     int64:size     = raw load64(map + 8i64);
     int64:buckets  = raw load64(map + 16i64);
